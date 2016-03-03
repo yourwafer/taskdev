@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>功能目录－添加成员</title>
+</head>
+<script type="text/javascript" src="js/jquery.js"></script>
+<!-- 新 Bootstrap 核心 CSS 文件 -->
+<link rel="stylesheet" href="/css/bootstrap.css"></link>
+
+<!-- 可选的Bootstrap主题文件（一般不用引入） -->
+<link rel="stylesheet" href="/css/bootstrap-theme.css"></link>
+
+<!-- 最新的 Bootstrap 核心 JavaScript 文件 -->
+<script type="text/javascript" src="/js/bootstrap.js"></script>
+<script type="text/javascript" src="/js/table.js"></script>
+
+<script type="text/javascript">
+
+	var _auths = {};
+	function initAuth(){
+		var url = "api/member/auths"
+		$.ajax({
+			url : url,
+			type : 'GET',
+			dataType : 'json',
+			contentType : "text/plain; charset=UTF-8",
+			success : function(authsRet) {
+				_auths = authsRet;
+				reenderAuth();
+				/* 初始化查询*/
+				query();
+			}
+		});
+	}
+	/**初始auth*/
+	initAuth();
+	function initDepartment(){
+		var url = "api/department"
+		$.ajax({
+			url : url,
+			type : 'GET',
+			dataType : 'json',
+			contentType : "text/plain; charset=UTF-8",
+			success : function(departments) {
+				var html = "";
+				for(var i in departments){
+					var de = departments[i];
+					html += '<option value="'+de.name+'">'+de.name+'</option>';
+				}
+				$("#department").html(html);
+			}
+		});
+	}
+	initDepartment();
+
+	var _Members = {};
+	function query() {
+		var url = "api/member"
+		$.ajax({
+			url : url,
+			type : 'GET',
+			dataType : 'json',
+			contentType : "text/plain; charset=UTF-8",
+			success : function(members) {
+				for(var i in members){
+					var member = members[i];
+					_Members[member.name] = member;
+					var authEx = [];
+					if(member.auths){
+						for(var i in member.auths){
+							authEx.push(_auths[member.auths[i]]);
+						}
+					}
+					member.auths = authEx;
+				}
+				$("#table").autotable(members);
+				$("#table tbody :button").click(removeUser);
+
+				var $trs = $("#table tbody tr");
+				for(var i=0;i < $trs.size(); ++i){
+					var $tr = $trs.eq(i);
+					$tr.find("td").eq(0).click(rowClick);
+				}
+			}
+		});
+	}
+	
+	function rowClick(){
+		var $this = $(this);
+		var name = $this.html();
+		var member = _Members[name];
+		$("#name").val(member.name);
+		$("#department").val(member.department);
+		$("#password").val("");
+		var $inputs = $("#authDiv input");
+		var auths = member.auths;
+		for(var i=0; i < $inputs.size(); ++i){
+			var $input = $inputs.eq(i);
+			var des = $input.attr("describe");
+			$input.prop("checked", false);
+			for(var j in auths){
+				if(auths[j] == des){
+					$input.prop("checked", true);
+					break;
+				}
+			}
+		}
+	}
+	
+	function reenderAuth(){
+		var html = "";
+		for(var i in _auths){
+			html+='<label><input type="checkbox" value="'+i+'" describe="'+_auths[i]+'" />'+_auths[i]+'</label>';
+		}
+		$("#authDiv").html(html);
+	}
+	
+	/**添加部门*/
+	function addMember(){
+		var url = "api/member"
+		var name = $("#name").val();
+		var password = $("#password").val();
+		var department = $("#department").val();
+		var auths = [];
+		var authChecked = $("#authDiv input:checked");
+		for(var i=0; i< authChecked.size(); ++i){
+			auths.push(authChecked.eq(i).val());
+		}
+		var member = {name:name,password:password,department:department,auths:auths};
+		$.ajax({
+			url : url,
+			type : 'POST',
+			data : JSON.stringify(member),
+			dataType : 'json',
+			contentType : "text/plain; charset=UTF-8",
+			success : function(members) {
+				for(var i in members){
+					var member = members[i];
+					_Members[member.name] = member;
+					var authEx = [];
+					if(member.auths){
+						for(var i in member.auths){
+							authEx.push(_auths[member.auths[i]]);
+						}
+					}
+					member.auths = authEx;
+				}
+				$("#table").autotable(members);
+				var $trs = $("#table tbody tr");
+				for(var i=0;i < $trs.size(); ++i){
+					var $tr = $trs.eq(i);
+					$tr.find("td").eq(0).click(rowClick);
+				}
+				$("#table tbody :button").click(removeUser);
+			},
+			error :function(http){
+				alert(http.status + "\r\n" + http.statusText);
+			}
+		});
+	}
+	function removeUser(){
+		var $this = $(this);
+		var name = $this.attr("user");
+		$.ajax({
+			url : "/api/member/del/" + name,
+			type : 'GET',
+			dataType : 'json',
+			contentType : "text/plain; charset=UTF-8",
+			success : function(members) {
+				for(var i in members){
+					var member = members[i];
+					_Members[member.name] = member;
+					var authEx = [];
+					if(member.auths){
+						for(var i in member.auths){
+							authEx.push(_auths[member.auths[i]]);
+						}
+					}
+					member.auths = authEx;
+				}
+				$("#table").autotable(members);
+				var $trs = $("#table tbody tr");
+				for(var i=0;i < $trs.size(); ++i){
+					var $tr = $trs.eq(i);
+					$tr.find("td").eq(0).click(rowClick);
+				}
+				$("#table tbody :button").click(removeUser);
+			},
+			error :function(http){
+				alert(http.status + "\r\n" + http.statusText);
+			}
+		});
+	}
+	(function(){
+		var url = "api/login"
+		$.ajax({
+			url : url,
+			type : 'GET',
+			dataType : 'json',
+			contentType : "text/plain; charset=UTF-8",
+			success : function(login) {
+				if(login==null || login.name==null){
+					window.location.href="/index.html";
+					return;
+				}
+				$("#loginName").html(login.name);
+				$("#loginDepartment").html(login.department);
+			}
+		});
+	})();
+</script>
+<body>
+	<div class="container-fluid">
+		<div class="well  well-sm">
+			<div class="row">
+				<div class="col-md-4">
+				  		<span class="label label-info" >帐号</span>
+				    	<span class="h4" id="loginName"></span>
+				    	<span class="label label-info" >部门</span>
+				    	<span class="h5" id="loginDepartment"></span>
+				</div>
+				<div class="col-md-4">
+			    	<span class="label label-danger"><a href="api/login/out" style="color: white;" target="_self">登出</a></span>
+			    </div>
+			</div>
+		</div>
+		<div class="row">
+			<a target="_self" class="btn btn-default" href="catalog.html">目录</a>
+		</div>
+		<div class="row">
+			<form class="form-horizontal">
+			  <div class="form-group">
+			    <label for="name" class="col-sm-2 control-label">用户名</label>
+			    <div class="col-sm-10">
+			      <input type="text" class="form-control" id="name" placeholder="请输入">
+			    </div>
+			  </div>
+			  <div class="form-group">
+			    <label for="password" class="col-sm-2 control-label">Password</label>
+			    <div class="col-sm-10">
+			      <input type="text" class="form-control" id="password" placeholder="请输入">
+			    </div>
+			  </div>
+			  <div class="form-group">
+			    <label class="col-sm-2 control-label">部门</label>
+			    <div class="col-sm-10">
+			      	<select id="department">
+			      		
+			      	</select>
+			    </div>
+			  </div>
+			  <div class="form-group">
+			    <label class="col-sm-2 control-label">权限</label>
+			    <div class="checkbox col-sm-10" id="authDiv">
+			      	
+			    </div>
+			  </div>
+			  <div class="form-group">
+			    <div class="col-sm-offset-2 col-sm-10">
+			      <button type="button" class="btn btn-default" onclick="addMember()">添加</button>
+			    </div>
+			  </div>
+			</form>
+		</div>
+		<div class="row">
+			<div class="col-12">
+				<table id="table" class="table table-striped table-bordered">
+					<thead>
+						<tr>
+							<th field="name" width="10%" class="static-language">名称</th>
+							<th field="department" width="10%" class="static-language">部门</th>
+							<th field="auths" width="70%" class="static-language">权限</th>
+							<th  width="10%" html='<input type="button" value="删除" user="{name}" class="static-language btn btn-default" />' width="80%" class="static-language">权限</th>
+						</tr>
+					</thead>
+					<tbody>
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+</body>
+</html>

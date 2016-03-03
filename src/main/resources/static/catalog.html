@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>功能目录</title>
+</head>
+<script type="text/javascript" src="js/jquery.js"></script>
+<!-- 新 Bootstrap 核心 CSS 文件 -->
+<link rel="stylesheet" href="/css/bootstrap.css"></link>
+
+<!-- 可选的Bootstrap主题文件（一般不用引入） -->
+<link rel="stylesheet" href="/css/bootstrap-theme.css"></link>
+
+<!-- 最新的 Bootstrap 核心 JavaScript 文件 -->
+<script src="/js/bootstrap.js"></script>
+<script type="text/javascript">
+	(function(){
+		var url = "api/login"
+		$.ajax({
+			url : url,
+			type : 'GET',
+			dataType : 'json',
+			contentType : "text/plain; charset=UTF-8",
+			success : function(login) {
+				if(login==null || login.name==null){
+					window.location.href="/index.html";
+					return;
+				}
+				$("#loginName").html(login.name);
+				$("#loginDepartment").html(login.department);
+			}
+		});
+	})();
+</script>
+<body>
+	<div class="container-fluid">
+		<div class="well  well-sm">
+			<div class="row">
+				<div class="col-md-4">
+				  		<span class="label label-info" >帐号</span>
+				    	<span class="h4" id="loginName"></span>
+				    	<span class="label label-info" >部门</span>
+				    	<span class="h5" id="loginDepartment"></span>
+				</div>
+				<div class="col-md-4">
+			    	<span class="label label-danger"><a href="api/login/out" style="color: white;" target="_self">登出</a></span>
+			    </div>
+			</div>
+		</div>
+		<div class="row">
+			<h3>功能</h3>
+		</div>
+		<div class="row">
+			<div class="col-12">
+				<div class="list-group">
+				  <a href="department.html" target="_self" class="list-group-item">
+						部门
+				  </a>
+				  <a href="member.html" target="_self" class="list-group-item">成员</a>
+				  <a href="task.html" target="_self" class="list-group-item">任务</a>
+				  <a href="assist.html" target="_self" class="list-group-item">任务协助关系及进度</a>
+				</div>
+			</div>
+		</div>
+	</div>
+	
+</body>
+</html>

@@ -1,0 +1,75 @@
+@charset "utf-8";
+body {
+	margin: 0px;
+	padding: 0px;
+	font-size: 12px;
+	font-family: "微软雅黑","宋体","Arial";
+}
+div {
+	line-height: 20px;
+	margin: 0px;
+	padding: 0px;
+}
+ul {
+	margin: 0px;
+	padding: 0px;
+}
+li {
+	margin: 0px;
+	padding: 0px;
+	list-style-type: none;
+	float: left;
+	line-height: 30px;
+	clear: both;
+}
+img {
+	border-top-style: none;
+	border-right-style: none;
+	border-bottom-style: none;
+	border-left-style: none;
+}
+
+
+form {
+	margin: 0px;
+	padding: 0px;
+}
+
+
+
+
+h1, h2, h3, h4, h5, h6 {
+	font-size: 14px;
+	margin: 0px;
+	padding: 0px;
+}
+a:link {
+	font-size: 12px;
+	text-decoration: none;
+	color: #333333;
+}
+a:visited {
+	font-size: 12px;
+	text-decoration: none;
+	color: #333333;
+}
+a:hover {
+	font-size: 12px;
+	color: #FF9900;
+}
+a..b:link {
+	font-size: 14px;
+	color: #666666;
+	text-decoration: none;
+}
+a.b:visited {
+	font-size: 14px;
+	color: #666666;
+	text-decoration: none;
+}
+a.b:hover {
+	font-size: 15px;
+	color: #FF9933;
+	text-decoration: none;
+	line-height: 31px;
+}

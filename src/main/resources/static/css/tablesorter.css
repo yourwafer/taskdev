@@ -1,0 +1,42 @@
+/* tables */
+/*总样式*/
+table.tablesorter {
+	background-color: #CDCDCD;
+	color:#333;
+	/*width: 100%;*/
+	text-align: center;
+	line-height:26px;
+	border: 1px solid #CCC;
+}
+/*表格标题*/
+table.tablesorter thead tr th, table.tablesorter tfoot tr th {
+	background-color: #ECCE52;
+}
+
+/*表格内容样式*/
+table.tablesorter tbody td {
+	background:#FFF;
+	border-top:1px solid #ccc;
+	color: #333;
+	
+}
+/*表格可以排序样式*/
+table.tablesorter thead tr .header {
+	background-image: url(../images/bg.gif);
+	background-repeat: no-repeat;
+
+	cursor: pointer;
+}
+/*向上按钮图片*/
+table.tablesorter thead tr .headerSortUp {
+	background-image: url(../images/asc.gif);
+}
+/*向下按钮图片*/
+table.tablesorter thead tr .headerSortDown {
+	background-image: url(../images/desc.gif);
+}
+/*排序标题背景色*/
+table.tablesorter thead tr .headerSortDown, table.tablesorter thead tr .headerSortUp {
+	background-color: #fef3c6;
+	
+}

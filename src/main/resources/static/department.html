@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>功能目录－添加部门</title>
+</head>
+<script type="text/javascript" src="js/jquery.js"></script>
+<!-- 新 Bootstrap 核心 CSS 文件 -->
+<link rel="stylesheet" href="/css/bootstrap.css"></link>
+
+<!-- 可选的Bootstrap主题文件（一般不用引入） -->
+<link rel="stylesheet" href="/css/bootstrap-theme.css"></link>
+
+<!-- 最新的 Bootstrap 核心 JavaScript 文件 -->
+<script type="text/javascript" src="/js/bootstrap.js"></script>
+<script type="text/javascript" src="/js/table.js"></script>
+
+<script type="text/javascript">
+	function query() {
+		var url = "api/department"
+		$.ajax({
+			url : url,
+			type : 'GET',
+			dataType : 'json',
+			contentType : "text/plain; charset=UTF-8",
+			success : function(departments) {
+				$("#table").autotable(departments);
+			}
+		});
+	}
+	/* 初始化查询*/
+	query();
+	
+	/**添加部门*/
+	function addDepartment(){
+		var url = "api/department"
+		var name = $("#addName").val();
+		$.ajax({
+			url : url,
+			type : 'POST',
+			data : name,
+			dataType : 'json',
+			contentType : "text/plain; charset=UTF-8",
+			success : function(departments) {
+				$("#table").autotable(departments);
+			},
+			error :function(http){
+				alert(http.status + "\r\n" + http.statusText);
+			}
+		});
+	}
+	(function(){
+		var url = "api/login"
+		$.ajax({
+			url : url,
+			type : 'GET',
+			dataType : 'json',
+			contentType : "text/plain; charset=UTF-8",
+			success : function(login) {
+				if(login==null || login.name==null){
+					window.location.href="/index.html";
+					return;
+				}
+				$("#loginName").html(login.name);
+				$("#loginDepartment").html(login.department);
+			}
+		});
+	})();
+</script>
+<body>
+	<div class="container-fluid">
+		<div class="well  well-sm">
+			<div class="row">
+				<div class="col-md-4">
+				  		<span class="label label-info" >帐号</span>
+				    	<span class="h4" id="loginName"></span>
+				    	<span class="label label-info" >部门</span>
+				    	<span class="h5" id="loginDepartment"></span>
+				</div>
+				<div class="col-md-4">
+			    	<span class="label label-danger"><a href="api/login/out" style="color: white;" target="_self">登出</a></span>
+			    </div>
+			</div>
+		</div>
+		<div class="row">
+			<a target="_self" class="btn btn-default" href="catalog.html">目录</a>
+		</div>
+		<div class="row">
+			<form class="form-inline">
+			  <div class="form-group">
+			    <label for="exampleInputEmail2">部门名称</label>
+			    <input type="text" class="form-control" id="addName" placeholder="请输入">
+			  </div>
+			  <button type="button" class="btn btn-default" onclick="addDepartment()">添加</button>
+			</form>
+		</div>
+		<div class="row">
+			<div class="col-12">
+				<table id="table" class="table table-striped table-bordered">
+					<thead>
+						<tr>
+							<th field="id" width="50%" class="static-language">id</th>
+							<th field="name" width="50%" class="static-language">名称</th>
+						</tr>
+					</thead>
+					<tbody>
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+</body>
+</html>

@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>添加删除任务</title>
+</head>
+<script type="text/javascript" src="js/jquery.js"></script>
+<!-- 新 Bootstrap 核心 CSS 文件 -->
+<link rel="stylesheet" href="/css/bootstrap.css"></link>
+
+<!-- 可选的Bootstrap主题文件（一般不用引入） -->
+<link rel="stylesheet" href="/css/bootstrap-theme.css"></link>
+<link rel="stylesheet" href="/css/bootstrap-datetimepicker.css"></link>
+
+<!-- 最新的 Bootstrap 核心 JavaScript 文件 -->
+<script type="text/javascript" src="/js/bootstrap.js"></script>
+
+<script type="text/javascript" src="/js/bootstrap-datetimepicker.js"></script>
+<script type="text/javascript" src="/js/bootstrap-datetimepicker.zh-CN.js"></script>
+<script type="text/javascript" src="/js/date.js"></script>
+
+<script type="text/javascript" src="/js/table.js"></script>
+
+<script type="text/javascript">
+
+	// 初始人员
+	var _OriMembers = [];
+	// 缓存所有用户
+	var _Members =[];
+	// 名称对应下标
+	var _MembersIndex = {};
+	// 别名对应真名
+	var _NameAlias = {};
+	// 同样名字数组
+	var _MemberArray = {};
+	// 缓存每个人的任务
+	var _Tasks = [];
+	/** 整页的开始时间 */
+	var _BeginDate = null;
+	
+	function addPersonRow(){
+		var $this = $(this);
+		var personIndex = $this.data("person");
+		addPerson(personIndex);
+	}
+	
+	/** 同一个用户增加一行 */
+	function addPerson(personIndex){
+		// 增加的玩家行
+		var member = _Members[personIndex];
+		var hasMembers = _MemberArray[member.name];
+		
+		var newMember = copyMember(member);
+		newMember.name = member.name + "-" +  hasMembers.length;
+		// 加入数组
+		_Members.push(newMember);
+		var newIndex = _Members.length - 1;
+		hasMembers.push(newIndex);
+		// 缓存索引
+		_MembersIndex[newMember.name] = newIndex;
+		// 别名
+		_NameAlias[newMember.name] = member.name;
+		
+		var taskLength = _Tasks[0].length;
+		var tasks = [];
+		for(var i =0; i< taskLength; ++i){
+			tasks.push({});
+		}
+		_Tasks.push(tasks);
+		
+		var chooseId = "tr[person=" + personIndex +"]";
+		var $trs = $(chooseId);
+		// 位置ID
+		var taskId = 1;
+		for(var trId=0; trId< $trs.size(); ++trId){
+			var $beforeTr = $trs.eq(trId);
+			$beforeTr.removeAttr("person");
+			var $tr = $("<tr></tr>");
+			$tr.attr("person", personIndex);
+			$tr.append("<td></td>");
+			var $memTd = $('<td></td>');
+			$memTd.html(newMember.name);
+			$tr.append($memTd);
+			for(var i=0;i<7; ++i){
+				var $taskTd = $('<td task="task"></td>');
+				$taskTd.data("person",newIndex);
+				$taskTd.data("taskIndex",(taskId));
+				$taskTd.data("color",-1);
+				$taskTd.css("background-color", "#FFFFFF");
+				
+				$taskTd.attr("id",newIndex+"-"+ taskId);
+				$taskTd.click(tdTaskClick);
+				$tr.append($taskTd);
+				++taskId;
+			}
+			$beforeTr.after($tr);
+		}
+		return newIndex;
+	}
+	
+	function copyMember(ori){
+		var cp = {};
+		cp.name = ori.name;
+		cp.id = ori.id;
+		cp.password = ori.password;
+		cp.department = ori.department;
+		cp.valid = ori.valid;
+		return cp;
+	}
+	
+	/** 渲染几个月出来*/
+	function reenderDate(date, needMonthCount){
+		_$ClickFrom = null;
+		_Action = {};
+		_SuccessSub = false;
+		// 初始化成员
+		initMembers(_OriMembers);
+		// 每月第一天
+		monthFirst(date);
+		// 需要补足一个月
+		if(date.getDay() != 1){
+			needMonthCount += 1;
+		}
+		// 获取周一
+		initDay(date);
+		// 缓存日期开始
+		_BeginDate = new Date(date.getTime());
+		// 当前月	
+		var curMonth = date.getMonth();
+		// 是否结束本月
+		var monthCount = 0;
+		var $body = $("#monthBody");
+		$body.html("");
+		// 用户任务ID
+		var taskId = 1;
+		var addIcon = {};
+		while(monthCount < needMonthCount || date.getDay() != 1){
+			var $tr = $('<tr style="background-color: #EEEEEE;"><td></td></tr>');
+			$tr.append($("<td></td>"));
+			for(var add = 0;add < 7; ++add){
+				var $td = $("<td></td>");
+				$td.html(date.format("MM-dd"));
+				$tr.append($td);
+				
+				var tmpMonth = date.getMonth();
+				if(tmpMonth != curMonth){
+					++ monthCount;
+					curMonth = tmpMonth;
+				}
+				
+				// 增加一天
+				addDay(date, 1);
+			}
+			$body.append($tr);
+			// 缓存任务ID
+			var preTaskId = taskId;
+			for(var index in _Members){
+				var $tr = $('<tr></tr>');
+				$tr.attr("person", index)
+				if(addIcon[index] ==null){
+					var $tdIcon = $('<td ><span class="glyphicon glyphicon-plus" aria-hidden="true"></span></td>');
+					$tdIcon.data("person", index);
+					$tdIcon.click(addPersonRow);
+					$tr.append($tdIcon);
+					addIcon[index] = index;
+				}else{
+					$tr.append($('<td></td>'));
+				}
+				var $memTd = $('<td></td>');
+				var member = _Members[index];
+				$memTd.html(member.name);
+				$tr.append($memTd);
+				for(var i=0;i<7; ++i){
+					var $taskTd = $('<td task="task"></td>');
+					$taskTd.data("person",index);
+					$taskTd.data("taskIndex",(preTaskId + i));
+					$taskTd.data("color",-1);
+					$taskTd.css("background-color", "#FFFFFF");
+					
+					$taskTd.attr("id",index+"-"+(preTaskId + i));
+					$taskTd.click(tdTaskClick);
+					$tr.append($taskTd);
+				}
+				$body.append($tr);
+			}
+			taskId +=7;
+		}
+
+		// 初始化用户任务
+		_Tasks = [];
+		for(var index in _Members){
+			var tasks = [];
+			for(var day =1; day < taskId; ++day){
+				tasks.push({});
+			}
+			_Tasks.push(tasks);
+		}
+		// 加载所有任务
+		addDay(date, -1);
+		loadTasks(_BeginDate, date);
+	}
+	
+	/** 加载所有任务 */
+	function loadTasks(from, to){
+		var url = "api/task/department";
+		var DAY = 24 * 60 * 60 * 1000;
+		$.ajax({
+			url : url,
+			type : 'GET',
+			data : {fromS:from.format("yyyy-MM-dd hh:mm:ss"), toS:to.format("yyyy-MM-dd hh:mm:ss")},
+			dataType : 'json',
+			contentType : "text/plain; charset=UTF-8",
+			success : function(tasks) {
+				var beginMillTime = _BeginDate.getTime();
+				// 处理工作任务
+				for(var taskIndex in tasks){
+					var task = tasks[taskIndex];
+					var personIndex = _MembersIndex[task.name];
+					// 任务的开始时间和结束时间，计算相对开始时间的偏移
+					var start = new Date(task.start);
+					var end = new Date(task.end);
+					var startIndex = (task.start - beginMillTime)/DAY + 1;
+					var endIndex = (task.end - beginMillTime)/DAY + 1;
+					var job = {
+							id : task.id,
+							name : 	task.name,
+							person : personIndex,
+							content : task.job,
+							from : start,
+							to : end,
+							progress : task.progress,
+							valid : true,
+							taskFrom : startIndex,
+							taskTo : endIndex,
+						};
+					// 检查同一天是否有工作冲突
+					var personArrayIndex = 0;
+					var hasMembers = _MemberArray[task.name];
+					while(personArrayIndex < hasMembers.length){
+						var emptyPersonIndex = hasMembers[personArrayIndex];
+						for(var i = startIndex; i<=endIndex; ++i){
+							var globalTasks = _Tasks[emptyPersonIndex];
+							var preJob = globalTasks[i-1];
+							if(preJob.valid == true){
+								break;
+							}
+						}
+						if(i > endIndex){
+							break;
+						}
+						++ personArrayIndex;
+					}
+					if(personArrayIndex >= hasMembers.length){
+						personIndex = addPerson(personIndex);
+						job.name = _Members[personIndex].name;
+					}else{
+						personIndex = hasMembers[personArrayIndex];
+					}
+					job.person = personIndex;
+					
+					for(var i = startIndex; i<=endIndex; ++i){
+						var globalTasks = _Tasks[personIndex];
+						globalTasks[i-1] = job;
+					}
+				}
+				reenderTask();
+			}
+		});
+	}
+	
+	// 渲染工作任务
+	function reenderTask(){
+		for(var personIndex in _Tasks){
+			var tasks = _Tasks[personIndex];
+			var taskIndex = 0;
+			// 遍历成员的任务列表
+			while(taskIndex < tasks.length){
+				var task = tasks[taskIndex];
+				if(task.valid != true){
+					++taskIndex;
+					continue;
+				}
+				var startId = "#" + task.person + "-"+ task.taskFrom;
+				var endId = "#" + task.person + "-"+ task.taskTo;
+				var pre  = preColor($(startId));
+				var after = afterColor($(endId));
+				var color = rightColor(pre, after);
+				for(var tdFrom = task.taskFrom; tdFrom <= task.taskTo; ++tdFrom){
+					var updateId = "#" + task.person + "-"+ tdFrom;
+					var $td = $(updateId);
+					$td.css("background-color", _colors[color]);
+					$td.data("color", color);
+				}
+				var updateId = "#" + task.person + "-"+ task.taskFrom;
+				if(task.content.length > 20){
+					var $contentDiv = $("<div></div>");
+					$contentDiv.html(task.content.substring(0,20) + "...");
+					$contentDiv.attr("data-placement","top");
+					$contentDiv.attr("title",task.content);
+					$contentDiv.attr("data-toggle","tooltip");
+					$(updateId).html($contentDiv);
+				}else{
+					$(updateId).html(task.content);
+				}
+				taskIndex = task.taskTo;
+			}
+		}
+		$('[data-toggle="tooltip"]').tooltip();
+	}
+	
+	// 第一次点击控件
+	var _$ClickFrom = null;
+	var _Action = {};
+	var _SuccessSub = false;
+	/**td 点击*/
+	function tdTaskClick(){
+		var $td = $(this);
+		// 标识颜色
+		reenderColor($td);
+		if(_$ClickFrom==null){
+			_$ClickFrom = $td;
+			return;
+		}else{
+			// 显示人员任务
+			addTask();
+			_SuccessSub = false;
+			_$ClickFrom = null;
+		}
+	}
+	
+	/** 设置颜色 */
+	function reenderColor($dom){
+		if(_$ClickFrom == null){
+			var pre = preColor($dom);
+			var after = afterColor($dom);
+			var colorIndex = rightColor(pre, after);
+			$dom.css("background-color", _colors[colorIndex]);
+			var oriColor = $dom.data("color");
+			$dom.data("oriColor", oriColor);
+			$dom.data("beginPoint", true);
+			$dom.data("color", colorIndex);
+		}else{
+			var fromPerson = _$ClickFrom.data("person");
+			var fromIndex = _$ClickFrom.data("taskIndex");
+			var toPerson = $dom.data("person");
+			var toIndex = $dom.data("taskIndex");
+			if(fromPerson >toPerson){
+				var tmp = fromPerson;
+				fromPerson = toPerson;
+				toPerson = tmp;
+			}
+			if(fromIndex > toIndex){
+				var tmp = fromIndex;
+				fromIndex = toIndex;
+				toIndex = tmp;
+			}
+			// 保存该行动
+			_Action = {fromPerson:fromPerson, fromIndex:fromIndex, toPerson:toPerson, toIndex: toIndex};
+			// 计算共同颜色
+			var commonColor = {};
+			for(var personIndex = fromPerson; personIndex <= toPerson; ++personIndex){
+				var personColors = [];
+				var taskIndex = fromIndex;
+				if(fromIndex > 1){
+					taskIndex -= 1;
+				}
+				var calTo = toIndex + 1;
+				for(; taskIndex <= calTo; ++taskIndex){
+					var tdId = "#"+personIndex + "-" + taskIndex;
+					var $setDom = $(tdId);
+					var curColor = $setDom.data("color");
+					if(curColor!=null && curColor < 0){
+						continue;
+					}
+					personColors.push(curColor);
+				}
+				var valid = -1;
+				for(var i in _colors){
+					var pIndex = 0;
+					for(pIndex =0; pIndex < personColors.length; ++pIndex){
+						if(i == personColors[pIndex]){
+							break;
+						}
+					}
+					if(pIndex >= personColors.length){
+						valid = i;
+						break;
+					}
+				}
+				if(valid >= 0){
+					commonColor[personIndex] = valid;			
+				}else{
+					commonColor[personIndex] = 0;
+				}
+			}
+			// 选择多个用户
+			for(var personIndex = fromPerson; personIndex <= toPerson; ++personIndex){
+				var tasks = _Tasks[personIndex];
+				for(var taskIndex = fromIndex; taskIndex <= toIndex; ++taskIndex){
+					// 如果同时改变多人，则不覆盖其原有任务
+					var tdId = "#"+personIndex + "-" + taskIndex;
+					var $setDom = $(tdId);
+					var beginPoint = $setDom.data("beginPoint");
+					
+					if(fromPerson!=toPerson && tasks[taskIndex-1]["valid"] == true){
+						if(beginPoint == true){
+							var ori = $setDom.data("oriColor");
+							$setDom.data("color",_colors[ori]);
+							$setDom.css("background-color", _colors[ori]);
+						}
+						continue;
+					}
+					$setDom.css("background-color", _colors[commonColor[personIndex]]);
+					// 如果是起始节点，则不覆盖
+					if(beginPoint == true){
+						$setDom.data("beginPoint", false);
+					}else{
+						var oriColor = $setDom.data("color");
+						$setDom.data("oriColor",oriColor);
+					}
+					$setDom.data("color",commonColor[personIndex]);
+				}
+			}
+		}
+	}
+	// 第一次点击控件
+	function rightColor(pre, after){
+		for(var i in _colors){
+			if(pre !=i && after != i){
+				return i;
+			}
+		}
+		return _colors[0];
+	}
+	
+	function preColor($dom){
+		var index = $dom.data("taskIndex");
+		var colorIndex = -1;
+		if(index !=1){
+			var preId ="#"+ $dom.data("person") + "-" + (index-1);
+			colorIndex = $(preId).data("color");
+		}
+		return colorIndex;
+	}
+	function afterColor($dom){
+		var index = $dom.data("taskIndex");
+		var colorIndex = -1;
+		if(index !=1){
+			var preId = "#"+$dom.data("person") + "-" + (index+1);
+			if($(preId).data("color") == null){
+				return -1;
+			}
+			colorIndex = $(preId).data("color");
+		}
+		return colorIndex;
+	}
+	
+	var _colors = ["#CCCCFF","#CCFFFF","#FFFFCC","#CC9966","#00FFCC","#FF0000","#33FF33","#FF9900","#996600","#999900","#DDDDDD"];
+	
+	/** 一周第一天 */
+	function monthFirst(date){
+		date.setDate(1);
+		date.setHours(0);
+		date.setMinutes(0);
+		date.setSeconds(0);
+		date.setMilliseconds(0);
+	}
+	
+	/** 必须从周一开始 */
+	function initDay(date){
+		
+		var day = 24 * 60 * 60 *1000;
+		// 今天周几，补足几天
+		var week = date.getDay();
+		var decMill = (week - 1)*day;
+		// 如果是周日
+		if(week == 0){
+			decMill = 6 * day;
+		}
+		date.setTime(date.getTime() - decMill);
+	}
+	
+	/** 增加几日 */
+	function addDay(date, add){
+		var day = add * 24 * 60 * 60 *1000;
+		date.setTime(date.getTime() + day);
+	}
+	
+	function initMembers(members){
+		// 缓存所有用户
+		_Members =[];
+		// 名称对应下标
+		_MembersIndex = {};
+		// 别名对应真名
+		_NameAlias = {};
+		// 同样名字数组
+		_MemberArray = {};
+		for(var memberIndex in members){
+			var m = members[memberIndex];
+			_Members.push(m);
+			_MembersIndex[m.name] = memberIndex;
+			_NameAlias[m.name] = m.name;
+			_MemberArray[m.name] = [memberIndex];
+		}
+	}
+	
+	$(function($) {
+		
+		$("#dateInput").datetimepicker({
+			format: 'yyyy/mm',
+			todayBtn: true,
+			autoclose: true,
+			//startDate: new Date().getMonth(),
+			startView:'year',
+			//maxView:'year',
+			minView:'year',
+			todayHighlight:true,
+			language:"zh-CN"
+			}).on("changeDate",function(ev){
+				reenderDate(ev.date, 1);
+			});
+		$("#updateStart").datetimepicker({
+			format: 'yyyy/mm/dd',
+			todayBtn: true,
+			autoclose: true,
+			startView:'month',
+			minView:'month',
+			todayHighlight:true,
+			language:"zh-CN"
+			}).on("changeDate",function(ev){
+				$("#updateEnd").datetimepicker("setStartDate",ev.date.format("yyyy/MM/dd"));
+			});;
+		$("#updateEnd").datetimepicker({
+			format: 'yyyy/mm/dd',
+			todayBtn: true,
+			autoclose: true,
+			startView:'month',
+			minView:'month',
+			todayHighlight:true,
+			language:"zh-CN"
+			}).on("changeDate",function(ev){
+				$("#updateStart").datetimepicker("setEndDate",ev.date.format("yyyy/MM/dd"));
+			});;
+		(function() {
+			var url = "api/member/department"
+			$.ajax({
+				url : url,
+				type : 'GET',
+				dataType : 'json',
+				contentType : "text/plain; charset=UTF-8",
+				success : function(members) {
+					_OriMembers = members;
+					initMembers(members)
+					
+					var date = new Date();
+					$("#dateInput").val(date.format("yyyy/MM"));
+					$("#dateInput").trigger("change");
+					reenderDate(new Date(date.format("yyyy/MM")+"/01 00:00:00"), 1);
+				}
+			});
+		})();
+		(function(){
+			var url = "api/login"
+			$.ajax({
+				url : url,
+				type : 'GET',
+				dataType : 'json',
+				contentType : "text/plain; charset=UTF-8",
+				success : function(login) {
+					if(login==null || login.name==null){
+						window.location.href="/index.html";
+						return;
+					}
+					$("#loginName").html(login.name);
+					$("#loginDepartment").html(login.department);
+				}
+			});
+		})();
+		// 绑定取消事件
+		$("#inputTask").on("hide.bs.modal", function(e){
+			resetTaskColor();
+		});
+		// 绑定取消事件
+		$("#updateTask").on("hide.bs.modal", function(e){
+			resetTaskColor();
+			var fromPerson = _Action.fromPerson;
+			var fromIndex = _Action.fromIndex;
+			
+			// 检测是否为一个完整的任务
+			var tasks = _Tasks[fromPerson];
+			var fromJob = tasks[fromIndex-1];
+			fromJob.valid=true;
+		});
+	});
+	
+	function resetTaskColor(){
+		if(_SuccessSub == true){
+			return;
+		}
+		var fromPerson = _Action.fromPerson;
+		var fromIndex = _Action.fromIndex;
+		var toPerson = _Action.toPerson;
+		var toIndex = _Action.toIndex;
+		for(var personIndex = fromPerson; personIndex <= toPerson; ++personIndex){
+			var tasks = _Tasks[personIndex];
+			for(var taskIndex = fromIndex; taskIndex <= toIndex; ++taskIndex){
+				// 删除设置的临时任务
+				var tdId = "#"+personIndex + "-" + taskIndex;
+				var $setDom = $(tdId);
+				var beginPoint = $setDom.data("beginPoint");
+				if(beginPoint == true){
+					var oriColor = $setDom.data("oriColor");
+					if(oriColor == -1){
+						$setDom.css("background-color", "#FFFFFF");
+					}else{
+						$setDom.css("background-color", _colors[oriColor]);
+					}
+					$setDom.data("color",oriColor);
+					$setDom.data("beginPoint", false)
+				}
+				
+				if(tasks[taskIndex-1].valid==true){
+					continue;
+				}
+				var oriColor = $setDom.data("oriColor");
+				if(oriColor == -1){
+					$setDom.css("background-color", "#FFFFFF");
+				}else{
+					$setDom.css("background-color", _colors[oriColor]);
+				}
+				$setDom.data("color",oriColor);
+			}
+		}
+	}
+	
+
+	/** 删除任务 */
+	function delteTask(){
+		var fromPerson = _Action.fromPerson;
+		var fromIndex = _Action.fromIndex;
+		var toPerson = _Action.toPerson;
+		var toIndex = _Action.toIndex;
+		// 需要提交的任务
+		var needSubmit = [];
+		for(var personIndex = fromPerson; personIndex <= toPerson; ++personIndex){
+			var tasks = _Tasks[personIndex];
+			for(var taskIndex = fromIndex; taskIndex <= toIndex; ++taskIndex){
+				var task = tasks[taskIndex-1];
+				if(task.valid ==false){
+					if(task.taskFrom == taskIndex){
+						needSubmit.push(tasks[taskIndex-1]);
+					}
+				}
+			}
+		}
+		$("#inputTask").modal('toggle');
+		if(needSubmit.length > 0){
+			var submitQue = [];
+			for(var i in needSubmit){
+				var task = needSubmit[i];
+				var realName = _NameAlias[task.name];
+				var sub = {
+						id : task.id,
+						name : realName,
+						job : task.content,
+						start : task.from.getTime(),
+						end : task.to.getTime(),
+						progress : task.progress,
+						override : task.override
+				};
+				submitQue.push(sub);
+			}
+			var url = "api/task/department/delete"
+			$.ajax({
+				url : url,
+				type : 'POST',
+				data : JSON.stringify(submitQue),
+				dataType : 'json',
+				contentType : "text/plain; charset=UTF-8",
+				success : function(s) {
+					var dateStr = $('#dateInput').val();
+					var date = new Date(dateStr + "/01 00:00:00");
+					reenderDate(date, 1);
+				},
+				error :function(http){
+					resetTaskColor();
+					alert(http.status + "\r\n" + http.statusText);
+				}
+			});
+		}
+	}
+	
+	/** 增加任务安排 */
+	function addTask(){
+		var fromPerson = _Action.fromPerson;
+		var fromIndex = _Action.fromIndex;
+		var toPerson = _Action.toPerson;
+		var toIndex = _Action.toIndex;
+		
+		// 检测是否为一个完整的任务
+		if(fromPerson == toPerson){
+			var tasks = _Tasks[fromPerson];
+			var fromJob = tasks[fromIndex-1];
+			var toJob = tasks[toIndex - 1];
+			if(fromJob.valid == true && toJob.valid == true){
+				if(fromJob.id == toJob.id){
+					if(fromJob.taskFrom == fromIndex && fromJob.taskTo == toIndex){
+						fromJob.valid = false;
+						$("#updateName").val(fromJob.content);
+						$("#updateStart").val(fromJob.from.format("yyyy/MM/dd"));
+						$("#updateEnd").val(fromJob.to.format("yyyy/MM/dd"));
+						$("#updateStart").datetimepicker("setEndDate",fromJob.to.format("yyyy/MM/dd"));
+						$("#updateEnd").datetimepicker("setStartDate",fromJob.from.format("yyyy/MM/dd"));
+						$("#updateTask").modal('show');
+						return;
+					}
+				}
+			}
+		}
+		
+		// 如果同时修改多个用户的任务，则无法覆盖其已有任务
+		var mulPerson = fromPerson != toPerson;
+		var jobs = [];
+		for(var personIndex = fromPerson; personIndex <= toPerson; ++personIndex){
+			var tasks = _Tasks[personIndex];
+			var validIndex = [];
+			for(var taskIndex = fromIndex; taskIndex <= toIndex; ++taskIndex){
+				if(!mulPerson || tasks[taskIndex-1]["valid"] != true){
+					validIndex.push(taskIndex);
+				}else{
+					continue;
+				}
+			}
+			validIndex = filterFromTo(validIndex);
+			if(validIndex.length==0){
+				continue;
+			}
+			for(var i =0; i< validIndex.length; i+=2){
+				var fromTime = new Date(_BeginDate.getTime() + (validIndex[i]-1)*24 * 60 * 60 *1000);
+				var toTime = new Date(_BeginDate.getTime() + (validIndex[i+1]-1)*24 * 60 * 60 *1000);
+				var job = {
+					id : i,
+					name : 	_Members[personIndex].name,
+					person : personIndex,
+					from : fromTime,
+					to : toTime,
+					progress : 0,
+					valid : false,
+					taskFrom : validIndex[i],
+					taskTo : validIndex[i+1],
+					override : []
+				};
+				// 更新设置临时任务
+				for(var taskFrom = validIndex[i]; taskFrom <= validIndex[i+1]; ++taskFrom){
+					var preJob = tasks[taskFrom-1];
+					if(preJob.valid == true){
+						job.override.push(preJob.id);	
+					}
+					tasks[taskFrom-1] = job;
+				}
+				jobs.push(job);
+			}
+		}
+		
+		$("#jobs").autotable(jobs);
+		$("#inputTaskName").val("");
+		$("#inputTask").modal('show');
+	}
+	
+	/** 更新指定任务 */
+	function updateTheTask(){
+		_SuccessSub = true;
+		var fromPerson = _Action.fromPerson;
+		var fromIndex = _Action.fromIndex;
+		var toPerson = _Action.toPerson;
+		var toIndex = _Action.toIndex;
+		
+		// 检测是否为一个完整的任务
+		if(fromPerson == toPerson){
+			var tasks = _Tasks[fromPerson];
+			var fromJob = tasks[fromIndex-1];
+			var toJob = tasks[toIndex - 1];
+			if(fromJob.id == toJob.id){
+				if(fromJob.taskFrom == fromIndex && fromJob.taskTo == toIndex){
+					fromJob.valid = true;
+					var content = $("#updateName").val();
+					var start = $("#updateStart").val() + " 00:00:00";
+					var end = $("#updateEnd").val() + " 00:00:00";
+					var sub = {
+							id : fromJob.id,
+							job : content,
+							start : new Date(start).getTime(),
+							end : new Date(end).getTime(),
+						};
+					var url = "api/task/update"
+					$.ajax({
+						url : url,
+						type : 'POST',
+						data : JSON.stringify(sub),
+						dataType : 'json',
+						contentType : "text/plain; charset=UTF-8",
+						success : function() {
+							var dateStr = $('#dateInput').val();
+							var date = new Date(dateStr + "/01 00:00:00");
+							reenderDate(date, 1);
+						},
+						error :function(http){
+							resetTaskColor();
+							fromJob.valid = true;
+							alert(http.status + "\r\n" + http.statusText+"\n\n"+"可能没有权限，请重新加载页面确定是否添加成功");
+						}
+					});
+
+					$("#updateTask").modal('toggle');
+					return;
+				}
+			}
+		}
+	}
+	
+	function deleteTheTask(){
+		_SuccessSub = true;
+		var fromPerson = _Action.fromPerson;
+		var fromIndex = _Action.fromIndex;
+		var toPerson = _Action.toPerson;
+		var toIndex = _Action.toIndex;
+		
+		// 检测是否为一个完整的任务
+		if(fromPerson == toPerson){
+			var tasks = _Tasks[fromPerson];
+			var fromJob = tasks[fromIndex-1];
+			var toJob = tasks[toIndex - 1];
+			if(fromJob.id == toJob.id){
+				if(fromJob.taskFrom == fromIndex && fromJob.taskTo == toIndex){
+					var url = "api/task/delete/"+fromJob.id;
+					$.ajax({
+						url : url,
+						type : 'GET',
+						dataType : 'json',
+						contentType : "text/plain; charset=UTF-8",
+						success : function() {
+							var dateStr = $('#dateInput').val();
+							var date = new Date(dateStr + "/01 00:00:00");
+							reenderDate(date, 1);
+						},
+						error :function(http){
+							resetTaskColor();
+							fromJob.valid = true;
+							alert(http.status + "\r\n" + http.statusText+"\n\n"+"可能没有权限，请重新加载页面确定是否添加成功");
+						}
+					});
+
+					$("#updateTask").modal('toggle');
+					return;
+				}
+			}
+		}
+	}
+	
+	/** 提交任务 */
+	function submitTask(){
+		_SuccessSub = true;
+		var fromPerson = _Action.fromPerson;
+		var fromIndex = _Action.fromIndex;
+		var toPerson = _Action.toPerson;
+		var toIndex = _Action.toIndex;
+		var taskName = $("#inputTaskName").val();
+		if(taskName==null || taskName.length <=0){
+			alert("输入有效任务名称");
+			return;
+		}
+		// 需要提交的任务
+		var needSubmit = [];
+		for(var personIndex = fromPerson; personIndex <= toPerson; ++personIndex){
+			var tasks = _Tasks[personIndex];
+			for(var taskIndex = fromIndex; taskIndex <= toIndex; ++taskIndex){
+				var task = tasks[taskIndex-1];
+				if(task.valid ==false){
+					task.valid = true;
+					task.content = taskName;
+					if(task.taskFrom == taskIndex){
+						var tdId = "#"+personIndex +"-" + taskIndex;
+						needSubmit.push(tasks[taskIndex-1]);
+						if(taskName.length > 20){
+							var $contentDiv = $("<div></div>");
+							$contentDiv.html(task.content.substring(0,20) + "...");
+							$contentDiv.attr("data-placement","top");
+							$contentDiv.attr("title",task.content);
+							$contentDiv.attr("data-toggle","tooltip");
+							$(tdId).html($contentDiv);
+						}else{
+							$(tdId).removeAttr("data-placement");
+							$(tdId).removeAttr("data-toggle");	
+							$(tdId).html(taskName);
+						}
+					}
+				}
+			}
+		}
+		$("#inputTask").modal('toggle');
+		if(needSubmit.length > 0){
+			var submitQue = [];
+			for(var i in needSubmit){
+				var task = needSubmit[i];
+				var realName = _NameAlias[task.name];
+				var sub = {
+					id : task.id,
+					name : realName,
+					job : task.content,
+					start : task.from.getTime(),
+					end : task.to.getTime(),
+					progress : task.progress,
+					override : task.override
+				};
+				submitQue.push(sub);
+			}
+			var url = "api/task/department"
+			$.ajax({
+				url : url,
+				type : 'POST',
+				data : JSON.stringify(submitQue),
+				dataType : 'json',
+				contentType : "text/plain; charset=UTF-8",
+				success : function(idsmap) {
+					for(var taskIndex in needSubmit){
+						var task = needSubmit[taskIndex];
+						task.id = idsmap[task.id];
+					}
+				},
+				error :function(http){
+					resetTaskColor();
+					alert(http.status + "\r\n" + http.statusText+"\n\n"+"可能没有权限，请重新加载页面确定是否添加成功");
+				}
+			});
+		}
+	}
+
+	function filterFromTo(indexes){
+		var length = indexes.length;
+		if(length == 0){
+			return [];
+		}
+		var fromTo = [];
+		fromTo.push(indexes[0]);
+		var pre = indexes[0];
+		for(var i=1; i<length; ++i){
+			if((indexes[i]-pre) != 1){
+				fromTo.push(pre);
+				fromTo.push(indexes[i]);
+			}
+			pre = indexes[i];
+		}
+		fromTo.push(pre);
+		return fromTo;
+	}
+</script>
+<body>
+	<div class="container-fluid">
+		<div class="well  well-sm">
+			<div class="row">
+				<div class="col-md-4">
+					<span class="label label-info">帐号</span>
+					<span class="h4" id="loginName"></span>
+					<span class="label label-info">部门</span>
+					<span class="h5" id="loginDepartment"></span>
+				</div>
+				<div class="col-md-4">
+					<span class="label label-danger">
+						<a href="api/login/out" style="color: white;" target="_self">登出</a>
+					</span>
+				</div>
+			</div>
+		</div>
+		<div class="row">
+			<a target="_self" class="btn btn-default" href="catalog.html">目录</a>
+		</div>
+		<div class="row">
+			<div class="col-4">
+				<label>
+					<input size="16" type="text" id="dateInput">
+					<span class="glyphicon glyphicon-time" aria-hidden="true"></span>
+				</label>
+			</div>
+		</div>
+		<div class="row">
+			<div class="col-md-12">
+				<table class="table table-bordered">
+					<thead>
+						<tr style="background-color: #CCCCCC;">
+							<td width="1%"></td>
+							<td width="8%">人员</td>
+							<td width="13%">周一</td>
+							<td width="13%">周二</td>
+							<td width="13%">周三</td>
+							<td width="13%">周四</td>
+							<td width="13%">周五</td>
+							<td width="13%">周六</td>
+							<td width="13%">周日</td>
+						</tr>
+					</thead>
+					<tbody id="monthBody">
+
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+	<div class="modal fade" id="inputTask" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+		<div class="modal-dialog" role="document">
+			<div class="modal-content">
+				<div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
+					<h4 class="modal-title" id="myModalLabel">添加任务</h4>
+				</div>
+				<div class="modal-body">
+					<div class="container-fluid">
+						<div class="row">
+							<table id="jobs" class="table table-bordered table-bordered">
+								<thead>
+									<tr style="background-color: #CCCCCC;">
+										<th field="name" class="static-language" width="20%">名字
+										</td>
+										<th field="from" date="yyyy-MM-dd" class="static-language" width="30%">开始时间
+										</td>
+										<th field="to" date="yyyy-MM-dd" class="static-language" width="30%">结束时间
+										</td>
+										<th field="progress" class="static-language" width="20%">进度
+										</td>
+									</tr>
+								</thead>
+								<tbody>
+
+								</tbody>
+							</table>
+						</div>
+						<div class="row">
+							<div class="col-md-12">
+								<input class="col-md-12" type="text" placeholder="输入任务名称" id="inputTaskName" />
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-default" data-dismiss="modal">关闭此界面</button>
+					<button type="button" class="btn btn-danger" onclick="delteTask()">删除原有任务</button>
+					<button type="button" class="btn btn-primary" onclick="submitTask()">提交此任务</button>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="modal fade" id="updateTask" tabindex="-1" role="dialog" aria-labelledby="updateModalLabel">
+		<div class="modal-dialog" role="document">
+			<div class="modal-content">
+				<div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
+					<h4 class="modal-title" id="updateModalLabel">修改任务时间</h4>
+				</div>
+				<div class="modal-body">
+					<div class="container-fluid">
+						<div class="row">
+							<form class="form-horizontal">
+							  <div class="form-group">
+							    <label for="updateName" class="col-sm-2 control-label">名称</label>
+							    <div class="col-sm-10">
+							      <input type="text" class="form-control" id="updateName" />
+							    </div>
+							  </div>
+							  <div class="form-group">
+							    <label for="updateStart" class="col-sm-2 control-label">开始时间</label>
+							    <div class="col-sm-10">
+							      <input type="text" class="form-control" id="updateStart" />
+							    </div>
+							  </div>
+							  <div class="form-group">
+							    <label for="updateEnd" class="col-sm-2 control-label">结束时间</label>
+							    <div class="col-sm-10">
+							      <input type="text" class="form-control" id="updateEnd" />
+							    </div>
+							  </div>
+							</form>
+						</div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-default" data-dismiss="modal">关闭界面</button>
+					<button type="button" class="btn btn-danger" onclick="deleteTheTask()">删除</button>
+					<button type="button" class="btn btn-primary" onclick="updateTheTask()">修改</button>
+				</div>
+			</div>
+		</div>
+	</div>
+</body>
+</html>
